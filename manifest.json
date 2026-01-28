@@ -1,0 +1,22 @@
+{
+  "name": "VNYone Official VIP",
+  "short_name": "VNYone",
+  "description": "VNYone - Connect with VIP Friends",
+  "start_url": "chat.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#00dbde",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo.png",      
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join VNYone</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .signup-card { background: #1e293b; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 90%; max-width: 400px; text-align: center; border: 1px solid #334155; }
+        h1 { color: #00dbde; margin-bottom: 10px; font-size: 28px; letter-spacing: 1px; }
+        p { color: #94a3b8; font-size: 14px; margin-bottom: 25px; }
+        .input-group { margin-bottom: 15px; text-align: left; }
+        label { display: block; font-size: 11px; color: #00dbde; margin-bottom: 5px; margin-left: 5px; font-weight: bold; text-transform: uppercase; }
+        input, textarea { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #334155; background: #0f172a; color: white; outline: none; box-sizing: border-box; transition: 0.3s; }
+        input:focus { border-color: #fc00ff; }
+        button { width: 100%; padding: 15px; border-radius: 12px; border: none; background: linear-gradient(45deg, #00dbde, #fc00ff); color: white; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 15px rgba(0, 219, 222, 0.3); }
+        button:active { transform: scale(0.98); }
+    </style>
+</head>
+<body>
+
+<div class="signup-card">
+    <h1>VNYone</h1>
+    <p>Create your private identity</p>
+    
+    <div class="input-group">
+        <label>Full Name</label>
+        <input type="text" id="fullName" placeholder="Enter your name">
+    </div>
+
+    <div class="input-group">
+        <label>Username (Unique)</label>
+        <input type="text" id="userName" placeholder="e.g. vny_bhai123">
+    </div>
+
+    <div class="input-group">
+        <label>Bio</label>
+        <textarea id="userBio" rows="2" placeholder="Tell something about yourself..."></textarea>
+    </div>
+
+    <button id="startBtn" onclick="registerUser()">START CHATTING</button>
+</div>
+
+<script>
+    // --- AUTO-LOGIN CHECK (Sabse pehle) ---
+    if(localStorage.getItem('vnyUserName')) {
+        window.location.href = "chat.html";
+    }
+
+    // --- FIREBASE CONFIG ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyAq67c32Oz1wgTEqbmZStWsbNuJ2UTqgzc",
+        authDomain: "vnyone-1.firebaseapp.com",
+        projectId: "vnyone-1",
+        storageBucket: "vnyone-1.firebasestorage.app",
+        messagingSenderId: "353061173666",
+        appId: "1:353061173666:web:022b7015e116ff4b055afb"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    async function registerUser() {
+        const btn = document.getElementById('startBtn');
+        const name = document.getElementById('fullName').value.trim();
+        const username = document.getElementById('userName').value.trim().toLowerCase();
+        const bio = document.getElementById('userBio').value.trim();
+
+        if(!name || !username) { 
+            alert("Bhai, Name aur Username toh daal do!"); 
+            return; 
+        }
+
+        btn.innerText = "Checking...";
+        btn.disabled = true;
+
+        try {
+            // 1. UNIQUE USERNAME CHECK
+            const check = await db.collection("users").where("username", "==", username).get();
+            
+            if(!check.empty) { 
+                alert("Ye Username pehle se booked hai! Kuch aur try karo."); 
+                btn.innerText = "START CHATTING";
+                btn.disabled = false;
+                return; 
+            }
+
+            // 2. SAVE TO FIREBASE
+            await db.collection("users").add({
+                fullname: name,
+                username: username,
+                bio: bio,
+                joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            // 3. SAVE SESSION IN PHONE
+            localStorage.setItem('vnyUserName', username);
+            localStorage.setItem('vnyFullName', name);
+
+            alert("Welcome to VNYone!");
+            window.location.href = "chat.html";
+
+        } catch (error) {
+            console.error(error);
+            alert("Kuch gadbad ho gayi, try again!");
+            btn.innerText = "START CHATTING";
+            btn.disabled = false;
+        }
+    }
+</script>
+</body>
+</html>
