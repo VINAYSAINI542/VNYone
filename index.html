@@ -4,102 +4,122 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VNYone - VIP Login</title>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .login-card { background: #1e293b; padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; border: 1px solid #334155; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h1 { color: #00dbde; margin-bottom: 5px; }
-        input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 12px; border: 1px solid #334155; background: #0f172a; color: white; outline: none; box-sizing: border-box; }
-        button { width: 100%; padding: 15px; border-radius: 12px; border: none; background: linear-gradient(45deg, #00dbde, #fc00ff); color: white; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        #otp-section { display: none; }
-        .status { font-size: 12px; color: #94a3b8; margin-top: 10px; }
+        body { 
+            font-family: 'Segoe UI', sans-serif; 
+            background: #0f172a; 
+            color: white; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        .login-card { 
+            background: #1e293b; 
+            padding: 30px; 
+            border-radius: 20px; 
+            width: 90%; 
+            max-width: 400px; 
+            text-align: center; 
+            border: 1px solid #334155; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+        }
+        .logo-icon {
+            font-size: 50px;
+            color: #00dbde;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00dbde, #fc00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        h1 { margin: 0; font-size: 28px; }
+        p { color: #94a3b8; font-size: 14px; margin-bottom: 20px; }
+        
+        input { 
+            width: 100%; 
+            padding: 14px; 
+            margin: 10px 0; 
+            border-radius: 12px; 
+            border: 1px solid #334155; 
+            background: #0f172a; 
+            color: white; 
+            outline: none; 
+            box-sizing: border-box; 
+            text-align: center;
+            font-size: 16px;
+        }
+        input:focus { border-color: #00dbde; }
+
+        button { 
+            width: 100%; 
+            padding: 15px; 
+            border-radius: 12px; 
+            border: none; 
+            background: linear-gradient(45deg, #00dbde, #fc00ff); 
+            color: white; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin-top: 15px; 
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: 0.3s;
+        }
+        button:hover { opacity: 0.9; transform: scale(1.02); }
+        .footer-text { font-size: 11px; color: #64748b; margin-top: 20px; }
     </style>
 </head>
 <body>
 
 <div class="login-card">
-    <h1>VNYone</h1>
-    <p id="instr">Enter phone with country code</p>
+    <div class="logo-icon"><i class="fas fa-shield-halved"></i></div>
+    <h1>VNYone VIP</h1>
+    <p>Create your account or Login</p>
 
-    <div id="phone-section">
-        <input type="text" id="phoneNumber" placeholder="+91 9876543210">
-        <div id="recaptcha-container"></div>
-        <button id="sendBtn" onclick="sendOTP()">SEND OTP</button>
-    </div>
-
-    <div id="otp-section">
-        <input type="text" id="otpCode" placeholder="6-digit OTP">
-        <button id="verifyBtn" onclick="verifyOTP()">VERIFY & LOGIN</button>
-    </div>
+    <input type="text" id="userName" placeholder="Enter Your Name">
+    <input type="password" id="vipCode" placeholder="VIP Access Code">
     
-    <p class="status" id="statusMsg"></p>
+    <button onclick="handleLogin()">Create / Join Chat</button>
+    
+    <div class="footer-text">
+        Secure Encryption Enabled <br>
+        Ask Admin for the Secret VIP Code
+    </div>
 </div>
 
 <script>
-    const firebaseConfig = {
-        apiKey: "AIzaSyAS6yuGQVjj77eFF_mU4nezXo-IUej5_qI",
-        authDomain: "vnyone-0a.firebaseapp.com",
-        projectId: "vnyone-0a",
-        storageBucket: "vnyone-0a.firebasestorage.app",
-        messagingSenderId: "857347763939",
-        appId: "1:857347763939:web:74113d1adb74c1ec57dfd6"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-
-    // Recaptcha setup (Invisible)
-    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-        'size': 'invisible'
-    });
-
-    function sendOTP() {
-        const phone = document.getElementById('phoneNumber').value.trim();
-        const btn = document.getElementById('sendBtn');
-        
-        if(phone.length < 10) { alert("Sahi number dalo bhai!"); return; }
-
-        btn.disabled = true;
-        btn.innerText = "Sending...";
-
-        auth.signInWithPhoneNumber(phone, window.recaptchaVerifier)
-            .then((confirmationResult) => {
-                window.confirmationResult = confirmationResult;
-                document.getElementById('phone-section').style.display = 'none';
-                document.getElementById('otp-section').style.display = 'block';
-                document.getElementById('instr').innerText = "Enter the code sent to " + phone;
-            }).catch((error) => {
-                alert("Error: " + error.message);
-                btn.disabled = false;
-                btn.innerText = "SEND OTP";
-            });
+    // --- APP LOAD HOTE HI CHECK KARO ---
+    window.onload = function() {
+        // Agar pehle se login hai, toh sidha chat par bhejo
+        if(localStorage.getItem('vnyUserName')) {
+            window.location.href = "chat.html";
+        }
     }
 
-    function verifyOTP() {
-        const code = document.getElementById('otpCode').value.trim();
-        const btn = document.getElementById('verifyBtn');
+    function handleLogin() {
+        const name = document.getElementById('userName').value.trim();
+        const code = document.getElementById('vipCode').value.trim();
 
-        if(code.length !== 6) { alert("OTP 6 digits ka hota hai!"); return; }
+        // --- YAHA AAP APNA SECRET CODE SET KARO ---
+        const MASTER_CODE = "7860"; 
 
-        btn.disabled = true;
-        btn.innerText = "Verifying...";
+        if(name === "") {
+            alert("Bhai, apna naam toh likho!");
+            return;
+        }
 
-        confirmationResult.confirm(code).then((result) => {
-            const user = result.user;
-            // Phone number ko hi username bana dete hain filhaal
-            localStorage.setItem('vnyUserName', user.phoneNumber);
-            localStorage.setItem('vnyFullName', "VIP " + user.phoneNumber.slice(-4));
+        if(code === MASTER_CODE) {
+            // Save details to phone
+            localStorage.setItem('vnyUserName', name.toLowerCase().replace(/\s/g, '_') + Math.floor(Math.random() * 1000));
+            localStorage.setItem('vnyFullName', name);
             
-            alert("Login Successful!");
+            alert("Welcome! Aapka VIP account ban gaya hai.");
             window.location.href = "chat.html";
-        }).catch((error) => {
-            alert("Wrong OTP! Try again.");
-            btn.disabled = false;
-            btn.innerText = "VERIFY & LOGIN";
-        });
+        } else {
+            alert("Galti Code! Sahi VIP code dalo.");
+        }
     }
 </script>
 </body>
