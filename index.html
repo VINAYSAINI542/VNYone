@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Join VNYone</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
@@ -45,27 +45,29 @@
 </div>
 
 <script>
-    // --- AUTO-LOGIN CHECK (Sabse pehle) ---
+    // --- AUTO-LOGIN CHECK ---
     if(localStorage.getItem('vnyUserName')) {
         window.location.href = "chat.html";
     }
 
-    // --- FIREBASE CONFIG ---
+    // --- YOUR NEW FIREBASE CONFIG (VNYone-0a) ---
     const firebaseConfig = {
-        apiKey: "AIzaSyAq67c32Oz1wgTEqbmZStWsbNuJ2UTqgzc",
-        authDomain: "vnyone-1.firebaseapp.com",
-        projectId: "vnyone-1",
-        storageBucket: "vnyone-1.firebasestorage.app",
-        messagingSenderId: "353061173666",
-        appId: "1:353061173666:web:022b7015e116ff4b055afb"
+        apiKey: "AIzaSyAS6yuGQVjj77eFF_mU4nezXo-IUej5_qI",
+        authDomain: "vnyone-0a.firebaseapp.com",
+        databaseURL: "https://vnyone-0a-default-rtdb.firebaseio.com",
+        projectId: "vnyone-0a",
+        storageBucket: "vnyone-0a.firebasestorage.app",
+        messagingSenderId: "857347763939",
+        appId: "1:857347763939:web:74113d1adb74c1ec57dfd6"
     };
+
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    const db = firebase.database(); // Realtime Database use ho raha hai
 
     async function registerUser() {
         const btn = document.getElementById('startBtn');
         const name = document.getElementById('fullName').value.trim();
-        const username = document.getElementById('userName').value.trim().toLowerCase();
+        const username = document.getElementById('userName').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
         const bio = document.getElementById('userBio').value.trim();
 
         if(!name || !username) { 
@@ -77,22 +79,22 @@
         btn.disabled = true;
 
         try {
-            // 1. UNIQUE USERNAME CHECK
-            const check = await db.collection("users").where("username", "==", username).get();
+            // 1. UNIQUE USERNAME CHECK (Realtime Database way)
+            const snapshot = await db.ref('users/' + username).once('value');
             
-            if(!check.empty) { 
+            if(snapshot.exists()) { 
                 alert("Ye Username pehle se booked hai! Kuch aur try karo."); 
                 btn.innerText = "START CHATTING";
                 btn.disabled = false;
                 return; 
             }
 
-            // 2. SAVE TO FIREBASE
-            await db.collection("users").add({
+            // 2. SAVE TO REALTIME DATABASE
+            await db.ref('users/' + username).set({
                 fullname: name,
                 username: username,
                 bio: bio,
-                joinedAt: firebase.firestore.FieldValue.serverTimestamp()
+                joinedAt: Date.now()
             });
 
             // 3. SAVE SESSION IN PHONE
@@ -104,7 +106,7 @@
 
         } catch (error) {
             console.error(error);
-            alert("Kuch gadbad ho gayi, try again!");
+            alert("Database Error! Check if Test Mode is ON.");
             btn.innerText = "START CHATTING";
             btn.disabled = false;
         }
