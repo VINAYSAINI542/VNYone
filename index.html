@@ -3,58 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Join VNYone</title>
+    <title>VNYone - VIP Login</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .signup-card { background: #1e293b; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 90%; max-width: 400px; text-align: center; border: 1px solid #334155; }
-        h1 { color: #00dbde; margin-bottom: 10px; font-size: 28px; letter-spacing: 1px; }
-        p { color: #94a3b8; font-size: 14px; margin-bottom: 25px; }
-        .input-group { margin-bottom: 15px; text-align: left; }
-        label { display: block; font-size: 11px; color: #00dbde; margin-bottom: 5px; margin-left: 5px; font-weight: bold; text-transform: uppercase; }
-        input, textarea { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #334155; background: #0f172a; color: white; outline: none; box-sizing: border-box; transition: 0.3s; }
-        input:focus { border-color: #fc00ff; }
-        button { width: 100%; padding: 15px; border-radius: 12px; border: none; background: linear-gradient(45deg, #00dbde, #fc00ff); color: white; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; box-shadow: 0 4px 15px rgba(0, 219, 222, 0.3); }
-        button:active { transform: scale(0.98); }
+        .login-card { background: #1e293b; padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; border: 1px solid #334155; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h1 { color: #00dbde; margin-bottom: 5px; }
+        input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 12px; border: 1px solid #334155; background: #0f172a; color: white; outline: none; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; border-radius: 12px; border: none; background: linear-gradient(45deg, #00dbde, #fc00ff); color: white; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        #otp-section { display: none; }
+        .status { font-size: 12px; color: #94a3b8; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-<div class="signup-card">
+<div class="login-card">
     <h1>VNYone</h1>
-    <p>Create your private identity</p>
+    <p id="instr">Enter phone with country code</p>
+
+    <div id="phone-section">
+        <input type="text" id="phoneNumber" placeholder="+91 9876543210">
+        <div id="recaptcha-container"></div>
+        <button id="sendBtn" onclick="sendOTP()">SEND OTP</button>
+    </div>
+
+    <div id="otp-section">
+        <input type="text" id="otpCode" placeholder="6-digit OTP">
+        <button id="verifyBtn" onclick="verifyOTP()">VERIFY & LOGIN</button>
+    </div>
     
-    <div class="input-group">
-        <label>Full Name</label>
-        <input type="text" id="fullName" placeholder="Enter your name">
-    </div>
-
-    <div class="input-group">
-        <label>Username (Unique)</label>
-        <input type="text" id="userName" placeholder="e.g. vny_bhai123">
-    </div>
-
-    <div class="input-group">
-        <label>Bio</label>
-        <textarea id="userBio" rows="2" placeholder="Tell something about yourself..."></textarea>
-    </div>
-
-    <button id="startBtn" onclick="registerUser()">START CHATTING</button>
+    <p class="status" id="statusMsg"></p>
 </div>
 
 <script>
-    // --- AUTO-LOGIN CHECK ---
-    if(localStorage.getItem('vnyUserName')) {
-        window.location.href = "chat.html";
-    }
-
-    // --- YOUR NEW FIREBASE CONFIG (VNYone-0a) ---
     const firebaseConfig = {
         apiKey: "AIzaSyAS6yuGQVjj77eFF_mU4nezXo-IUej5_qI",
         authDomain: "vnyone-0a.firebaseapp.com",
-        databaseURL: "https://vnyone-0a-default-rtdb.firebaseio.com",
         projectId: "vnyone-0a",
         storageBucket: "vnyone-0a.firebasestorage.app",
         messagingSenderId: "857347763939",
@@ -62,54 +49,57 @@
     };
 
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.database(); // Realtime Database use ho raha hai
+    const auth = firebase.auth();
 
-    async function registerUser() {
-        const btn = document.getElementById('startBtn');
-        const name = document.getElementById('fullName').value.trim();
-        const username = document.getElementById('userName').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
-        const bio = document.getElementById('userBio').value.trim();
+    // Recaptcha setup (Invisible)
+    window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+        'size': 'invisible'
+    });
 
-        if(!name || !username) { 
-            alert("Bhai, Name aur Username toh daal do!"); 
-            return; 
-        }
+    function sendOTP() {
+        const phone = document.getElementById('phoneNumber').value.trim();
+        const btn = document.getElementById('sendBtn');
+        
+        if(phone.length < 10) { alert("Sahi number dalo bhai!"); return; }
 
-        btn.innerText = "Checking...";
         btn.disabled = true;
+        btn.innerText = "Sending...";
 
-        try {
-            // 1. UNIQUE USERNAME CHECK (Realtime Database way)
-            const snapshot = await db.ref('users/' + username).once('value');
-            
-            if(snapshot.exists()) { 
-                alert("Ye Username pehle se booked hai! Kuch aur try karo."); 
-                btn.innerText = "START CHATTING";
+        auth.signInWithPhoneNumber(phone, window.recaptchaVerifier)
+            .then((confirmationResult) => {
+                window.confirmationResult = confirmationResult;
+                document.getElementById('phone-section').style.display = 'none';
+                document.getElementById('otp-section').style.display = 'block';
+                document.getElementById('instr').innerText = "Enter the code sent to " + phone;
+            }).catch((error) => {
+                alert("Error: " + error.message);
                 btn.disabled = false;
-                return; 
-            }
-
-            // 2. SAVE TO REALTIME DATABASE
-            await db.ref('users/' + username).set({
-                fullname: name,
-                username: username,
-                bio: bio,
-                joinedAt: Date.now()
+                btn.innerText = "SEND OTP";
             });
+    }
 
-            // 3. SAVE SESSION IN PHONE
-            localStorage.setItem('vnyUserName', username);
-            localStorage.setItem('vnyFullName', name);
+    function verifyOTP() {
+        const code = document.getElementById('otpCode').value.trim();
+        const btn = document.getElementById('verifyBtn');
 
-            alert("Welcome to VNYone!");
+        if(code.length !== 6) { alert("OTP 6 digits ka hota hai!"); return; }
+
+        btn.disabled = true;
+        btn.innerText = "Verifying...";
+
+        confirmationResult.confirm(code).then((result) => {
+            const user = result.user;
+            // Phone number ko hi username bana dete hain filhaal
+            localStorage.setItem('vnyUserName', user.phoneNumber);
+            localStorage.setItem('vnyFullName', "VIP " + user.phoneNumber.slice(-4));
+            
+            alert("Login Successful!");
             window.location.href = "chat.html";
-
-        } catch (error) {
-            console.error(error);
-            alert("Database Error! Check if Test Mode is ON.");
-            btn.innerText = "START CHATTING";
+        }).catch((error) => {
+            alert("Wrong OTP! Try again.");
             btn.disabled = false;
-        }
+            btn.innerText = "VERIFY & LOGIN";
+        });
     }
 </script>
 </body>
