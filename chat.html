@@ -5,25 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VNYone - Official VIP</title>
     
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#00dbde">
-
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
-        /* AAPKA PURANA SARA DESIGN WAHI HAI */
         body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         .chat-header { background: #1e293b; padding: 10px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #334155; }
         .user-profile { display: flex; align-items: center; gap: 10px; }
         .avatar { width: 40px; height: 40px; background: linear-gradient(45deg, #00dbde, #fc00ff); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
         #chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
-        .msg { max-width: 75%; padding: 12px; border-radius: 18px; font-size: 15px; position: relative; cursor: pointer; }
+        .msg { max-width: 75%; padding: 12px; border-radius: 18px; font-size: 15px; position: relative; cursor: pointer; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .sent { align-self: flex-end; background: linear-gradient(45deg, #00dbde, #00b4d8); color: #000; border-bottom-right-radius: 2px; }
         .received { align-self: flex-start; background: #334155; color: white; border-bottom-left-radius: 2px; }
-        .msg img { max-width: 100%; border-radius: 10px; margin-top: 5px; display: block; }
+        .msg img, .msg video { max-width: 100%; border-radius: 10px; margin-top: 5px; display: block; }
         .input-container { background: #1e293b; padding: 10px; display: flex; align-items: center; gap: 10px; }
         input { flex: 1; background: #0f172a; border: 1px solid #334155; padding: 12px; border-radius: 25px; color: white; outline: none; }
         .icon-btn { color: #00dbde; font-size: 20px; cursor: pointer; }
@@ -43,8 +40,8 @@
         </div>
     </div>
     <div style="color:#00dbde; font-size:18px;">
-        <i class="fa fa-phone" onclick="alert('Calling...')" style="margin-right:15px; cursor:pointer;"></i>
-        <i class="fa fa-video" onclick="alert('Video Calling...')" style="cursor:pointer;"></i>
+        <i class="fa fa-phone" onclick="alert('Voice calling is coming soon!')" style="margin-right:15px; cursor:pointer;"></i>
+        <i class="fa fa-video" onclick="alert('Video calling is coming soon!')" style="cursor:pointer;"></i>
     </div>
 </div>
 
@@ -59,74 +56,125 @@
 
 <div class="input-container">
     <label class="icon-btn"><i class="fa fa-plus-circle"></i><input type="file" id="mediaInput" style="display:none" onchange="uploadFile()"></label>
-    <input type="text" id="msgInput" placeholder="Message..." onkeypress="if(event.key==='Enter') sendMsg()">
+    <input type="text" id="msgInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMsg()">
     <i class="fa fa-paper-plane icon-btn" onclick="sendMsg()"></i>
 </div>
 
 <script>
-    /* AAPKI PURANI SARI SCRIPT WAHI HAI */
+    // --- UPDATED FIREBASE CONFIG (VNYone-0a) ---
     const firebaseConfig = {
-        apiKey: "AIzaSyAq67c32Oz1wgTEqbmZStWsbNuJ2UTqgzc",
-        authDomain: "vnyone-1.firebaseapp.com",
-        projectId: "vnyone-1",
-        storageBucket: "vnyone-1.firebasestorage.app",
-        messagingSenderId: "353061173666",
-        appId: "1:353061173666:web:022b7015e116ff4b055afb"
+        apiKey: "AIzaSyAS6yuGQVjj77eFF_mU4nezXo-IUej5_qI",
+        authDomain: "vnyone-0a.firebaseapp.com",
+        databaseURL: "https://vnyone-0a-default-rtdb.firebaseio.com",
+        projectId: "vnyone-0a",
+        storageBucket: "vnyone-0a.firebasestorage.app",
+        messagingSenderId: "857347763939",
+        appId: "1:857347763939:web:74113d1adb74c1ec57dfd6"
     };
+
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    const db = firebase.database();
     const storage = firebase.storage();
-    const myName = localStorage.getItem('vnyUserName') || "Guest";
+    const myUsername = localStorage.getItem('vnyUserName') || "Guest";
+    const myFullName = localStorage.getItem('vnyFullName') || "VIP User";
     let selectedId = null;
 
-    document.getElementById('display-name').innerText = myName;
-    document.getElementById('myAv').innerText = myName[0].toUpperCase();
+    document.getElementById('display-name').innerText = myFullName;
+    document.getElementById('myAv').innerText = myFullName[0].toUpperCase();
 
-    db.collection("global_messages").orderBy("time", "asc").onSnapshot(snap => {
+    // LISTEN FOR MESSAGES
+    db.ref("messages").on("value", (snapshot) => {
         const box = document.getElementById('chat-messages');
         box.innerHTML = "";
-        snap.forEach(doc => {
-            const d = doc.data();
-            const isMe = d.sender === myName;
+        snapshot.forEach((childSnapshot) => {
+            const d = childSnapshot.val();
+            const id = childSnapshot.key;
+            const isMe = d.sender === myUsername;
+            
             const div = document.createElement('div');
-            div.id = doc.id;
+            div.id = id;
             div.className = `msg ${isMe ? 'sent' : 'received'}`;
-            let html = `<small><b>${d.sender}</b></small><br>`;
-            if(d.type === 'image') html += `<img src="${d.url}">`;
-            else html += d.text;
+            
+            let html = `<small style="font-size:10px; opacity:0.7;">${d.senderName || d.sender}</small><br>`;
+            
+            if(d.type === 'image') {
+                html += `<img src="${d.url}" onload="scrollToBottom()">`;
+            } else if(d.type === 'video') {
+                html += `<video controls src="${d.url}"></video>`;
+            } else {
+                html += d.text;
+            }
+            
             div.innerHTML = html;
-            div.onclick = () => isMe ? openMenu(doc.id) : null;
+            div.onclick = () => isMe ? openMenu(id) : null;
             box.appendChild(div);
         });
-        box.scrollTop = box.scrollHeight;
+        scrollToBottom();
     });
+
+    function scrollToBottom() {
+        const box = document.getElementById('chat-messages');
+        box.scrollTop = box.scrollHeight;
+    }
 
     async function sendMsg() {
         const input = document.getElementById('msgInput');
         const text = input.value.trim();
         if(!text) return;
         input.value = "";
-        await db.collection("global_messages").add({
-            sender: myName, text: text, type: 'text', time: firebase.firestore.FieldValue.serverTimestamp()
+        
+        await db.ref("messages").push({
+            sender: myUsername,
+            senderName: myFullName,
+            text: text,
+            type: 'text',
+            time: Date.now()
         });
     }
 
     async function uploadFile() {
         const file = document.getElementById('mediaInput').files[0];
         if(!file) return;
-        alert("Uploading photo...");
+        
+        const type = file.type.startsWith('video') ? 'video' : 'image';
+        alert(`Uploading ${type}... Please wait.`);
+        
         const ref = storage.ref(`vnyone/${Date.now()}_${file.name}`);
         await ref.put(file);
         const url = await ref.getDownloadURL();
-        await db.collection("global_messages").add({
-            sender: myName, url: url, type: 'image', time: firebase.firestore.FieldValue.serverTimestamp()
+        
+        await db.ref("messages").push({
+            sender: myUsername,
+            senderName: myFullName,
+            url: url,
+            type: type,
+            time: Date.now()
         });
     }
 
-    function openMenu(id) { selectedId = id; document.getElementById('action-menu').style.display = 'block'; document.getElementById('overlay').style.display = 'block'; }
-    function closeMenu() { document.getElementById('action-menu').style.display = 'none'; document.getElementById('overlay').style.display = 'none'; }
-    async function deleteForEveryone() { await db.collection("global_messages").doc(selectedId).delete(); closeMenu(); }
-    function deleteForMe() { document.getElementById(selectedId).style.display = 'none'; closeMenu(); }
+    function openMenu(id) { 
+        selectedId = id; 
+        document.getElementById('action-menu').style.display = 'block'; 
+        document.getElementById('overlay').style.display = 'block'; 
+    }
+
+    function closeMenu() { 
+        document.getElementById('action-menu').style.display = 'none'; 
+        document.getElementById('overlay').style.display = 'none'; 
+    }
+
+    async function deleteForEveryone() { 
+        if(confirm("Unsend for everyone?")) {
+            await db.ref("messages/" + selectedId).remove(); 
+            closeMenu(); 
+        }
+    }
+
+    function deleteForMe() { 
+        const el = document.getElementById(selectedId);
+        if(el) el.style.display = 'none'; 
+        closeMenu(); 
+    }
 </script>
 </body>
 </html>
